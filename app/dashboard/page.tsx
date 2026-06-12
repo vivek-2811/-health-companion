@@ -10,6 +10,7 @@ import { SiriOrb } from '@/components/ui/siri-orb';
 import { AppleActivityCard } from '@/components/ui/apple-activity-ring';
 import { MacOSDock, HomeIcon, MessageIcon, ChartIcon } from '@/components/ui/mac-os-dock';
 import { createClient } from '@/lib/supabase/client';
+import { getGeminiResponse } from '@/app/actions/chat';
 
 interface Message {
   id: number;
@@ -147,6 +148,7 @@ export default function HealthCompanion() {
   const [healthData, setHealthData] = useState<HealthData>(initialHealthData);
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>(initialWeeklyData);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -154,47 +156,150 @@ export default function HealthCompanion() {
   const handleUserMessageRef = useRef<(text: string) => void>(() => {});
 
 
-  // Load from localStorage
+  // Save messages to localStorage for chat history persistence
   useEffect(() => {
-    const savedData = localStorage.getItem('healthData');
-    const savedWeekly = localStorage.getItem('weeklyData');
     const savedMessages = localStorage.getItem('messages');
-
-    setTimeout(() => {
-      if (savedData) {
-        setHealthData(JSON.parse(savedData));
-      } else {
-        setHealthData(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+    if (savedMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages).map((m: { id: number; text: string; isUser: boolean; timestamp: string }) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        }));
+        setMessages(parsed);
+      } catch {
+        setMessages(JSON.parse(savedMessages));
       }
-      
-      if (savedWeekly) setWeeklyData(JSON.parse(savedWeekly));
-      
-      if (savedMessages) {
-        try {
-          const parsed = JSON.parse(savedMessages).map((m: { id: number; text: string; isUser: boolean; timestamp: string }) => ({
-            ...m,
-            timestamp: new Date(m.timestamp)
-          }));
-          setMessages(parsed);
-        } catch {
-          setMessages(JSON.parse(savedMessages));
-        }
-      }
-    }, 0);
+    }
   }, []);
-
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem('healthData', JSON.stringify(healthData));
-  }, [healthData]);
-
-  useEffect(() => {
-    localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
-  }, [weeklyData]);
 
   useEffect(() => {
     localStorage.setItem('messages', JSON.stringify(messages));
   }, [messages]);
+
+  // Load health data and weekly data from Supabase
+  useEffect(() => {
+    const fetchUserAndData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        
+        // 1. Fetch today's health logs from Supabase
+        const dateStr = new Date().toISOString().split('T')[0];
+        const { data: todayLog, error: fetchError } = await supabase
+          .from('health_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('date', dateStr)
+          .maybeSingle();
+
+        let currentData = initialHealthData;
+
+        if (todayLog) {
+          currentData = {
+            water: todayLog.water,
+            sleep: parseFloat(todayLog.sleep),
+            steps: todayLog.steps,
+            mood: todayLog.mood,
+            lastUpdated: todayLog.updated_at,
+          };
+          setHealthData(currentData);
+        } else {
+          // If no log exists for today, insert a new one using default values
+          const { data: newLog } = await supabase
+            .from('health_logs')
+            .insert({
+              user_id: user.id,
+              date: dateStr,
+              water: initialHealthData.water,
+              sleep: initialHealthData.sleep,
+              steps: initialHealthData.steps,
+              mood: initialHealthData.mood,
+            })
+            .select()
+            .maybeSingle();
+            
+          if (newLog) {
+            currentData = {
+              water: newLog.water,
+              sleep: parseFloat(newLog.sleep),
+              steps: newLog.steps,
+              mood: newLog.mood,
+              lastUpdated: newLog.updated_at,
+            };
+            setHealthData(currentData);
+          }
+        }
+
+        // 2. Fetch last 7 days of logs for charts
+        const { data: weeklyLogs } = await supabase
+          .from('health_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(7);
+
+        if (weeklyLogs && weeklyLogs.length > 0) {
+          // Map to Chart Format
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const chartData = [];
+          
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const dayName = dayNames[d.getDay()];
+            
+            const log = weeklyLogs.find((l: any) => l.date === dateStr);
+            chartData.push({
+              day: dayName,
+              water: log ? log.water : (dateStr === new Date().toISOString().split('T')[0] ? currentData.water : 0),
+              sleep: log ? parseFloat(log.sleep) : (dateStr === new Date().toISOString().split('T')[0] ? currentData.sleep : 0),
+              steps: log ? log.steps : (dateStr === new Date().toISOString().split('T')[0] ? currentData.steps : 0),
+            });
+          }
+          setWeeklyData(chartData);
+        } else {
+          // Fallback to updating today's day in the initialWeeklyData
+          const today = new Date().getDay();
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const todayName = dayNames[today];
+          setWeeklyData(prev => 
+            prev.map(day => 
+              day.day === todayName 
+                ? { ...day, water: currentData.water, sleep: currentData.sleep, steps: currentData.steps }
+                : day
+            )
+          );
+        }
+      } else {
+        router.push('/signin');
+      }
+    };
+
+    fetchUserAndData();
+  }, [supabase, router]);
+
+  // Sync to Supabase helper function
+  const saveToSupabase = useCallback(async (newData: HealthData) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const { error } = await supabase
+      .from('health_logs')
+      .upsert({
+        user_id: user.id,
+        date: dateStr,
+        water: newData.water,
+        sleep: newData.sleep,
+        steps: newData.steps,
+        mood: newData.mood,
+      }, { onConflict: 'user_id,date' });
+
+    if (error) {
+      console.error('Error saving to Supabase:', error);
+    }
+  }, [supabase]);
 
   // Initialize Speech APIs
   useEffect(() => {
@@ -249,7 +354,7 @@ export default function HealthCompanion() {
     synthRef.current.speak(utterance);
   };
 
-  const handleUserMessage = useCallback((text: string) => {
+  const handleUserMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
     const userMsg: Message = {
@@ -261,13 +366,13 @@ export default function HealthCompanion() {
 
     setMessages(prev => [...prev, userMsg]);
 
-    // Generate AI response
-    setTimeout(() => {
-      const { text: aiText, updatedData } = generateAIResponse(text, healthData, weeklyData);
+    try {
+      // Call live Gemini AI Server Action (with rule-based fallback if no key)
+      const { text: aiText, updatedData } = await getGeminiResponse(text, healthData);
 
       const aiMsg: Message = {
         id: Date.now() + 1,
-        text: aiText,
+        text: aiText || "I'm sorry, I couldn't process that response.",
         isUser: false,
         timestamp: new Date(),
       };
@@ -279,6 +384,7 @@ export default function HealthCompanion() {
       if (updatedData) {
         const newData = { ...healthData, ...updatedData };
         setHealthData(newData);
+        saveToSupabase(newData);
         
         // Update today's weekly data
         const today = new Date().getDay();
@@ -295,8 +401,11 @@ export default function HealthCompanion() {
         
         toast.success('Health data updated!', { description: 'AI Coach logged your progress' });
       }
-    }, 600);
-  }, [healthData, weeklyData]);
+    } catch (err) {
+      console.error("Error communicating with AI coach:", err);
+      toast.error("Failed to connect to AI Coach. Please try again.");
+    }
+  }, [healthData, saveToSupabase]);
 
   useEffect(() => {
     handleUserMessageRef.current = handleUserMessage;
@@ -386,7 +495,9 @@ export default function HealthCompanion() {
               >
                 {/* Greeting */}
                 <div className="pt-2">
-                  <div className="text-3xl font-semibold tracking-tight">Good afternoon, Alex.</div>
+                  <div className="text-3xl font-semibold tracking-tight">
+                    Good afternoon, {user?.user_metadata?.first_name || 'User'}.
+                  </div>
                   <div className="text-zinc-400 mt-1">{"You're doing great today."}</div>
                 </div>
 
