@@ -344,9 +344,28 @@ export default function HealthCompanion() {
 
     synthRef.current.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-    utterance.volume = 0.9;
+    
+    // Deep, low pitch (range is 0 to 2) and slightly slower rate for deep tone
+    utterance.rate = 0.85;
+    utterance.pitch = 0.6;
+    utterance.volume = 0.95;
+
+    // Retrieve available system voices and find a male voice
+    const voices = synthRef.current.getVoices();
+    const maleVoice = voices.find(voice => {
+      const name = voice.name.toLowerCase();
+      return (
+        name.includes('male') || 
+        name.includes('david') || 
+        name.includes('mark') || 
+        name.includes('george') || 
+        name.includes('google uk english male')
+      );
+    });
+
+    if (maleVoice) {
+      utterance.voice = maleVoice;
+    }
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
