@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.health_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
-    water INTEGER DEFAULT 0, -- represented in ml (e.g. 250, 500, 2000)
+    water INTEGER DEFAULT 0, -- represented in ml
     sleep NUMERIC(4,2) DEFAULT 0,
     steps INTEGER DEFAULT 0,
     mood INTEGER DEFAULT 0,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS public.habits (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     frequency TEXT DEFAULT 'daily', -- daily, weekly
-    category TEXT DEFAULT 'general', -- e.g. reading, meditation, stretching, walking
+    category TEXT DEFAULT 'general',
     status TEXT DEFAULT 'active', -- active, paused
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -88,7 +88,35 @@ ALTER TABLE public.meals ENABLE ROW LEVEL SECURITY;
 
 
 -- ====================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- CLEANUP / IDEMPOTENT RLS POLICIES
+-- ====================================================
+
+-- Drop existing policies if they exist to avoid duplicate name errors
+DROP POLICY IF EXISTS "Users can view their own health logs" ON public.health_logs;
+DROP POLICY IF EXISTS "Users can insert their own health logs" ON public.health_logs;
+DROP POLICY IF EXISTS "Users can update their own health logs" ON public.health_logs;
+
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.user_profiles;
+
+DROP POLICY IF EXISTS "Users can view their own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can insert their own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can update their own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can delete their own habits" ON public.habits;
+
+DROP POLICY IF EXISTS "Users can view their own habit logs" ON public.habit_logs;
+DROP POLICY IF EXISTS "Users can insert their own habit logs" ON public.habit_logs;
+DROP POLICY IF EXISTS "Users can update/delete their own habit logs" ON public.habit_logs;
+
+DROP POLICY IF EXISTS "Users can view their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can insert their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can update their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can delete their own meals" ON public.meals;
+
+
+-- ====================================================
+-- CREATION OF RLS POLICIES
 -- ====================================================
 
 -- Policies for health_logs
@@ -130,6 +158,11 @@ CREATE POLICY "Users can delete their own meals" ON public.meals FOR DELETE TO a
 -- ====================================================
 -- TRIGGERS & HELPERS
 -- ====================================================
+
+-- Drop existing triggers to avoid duplicates
+DROP TRIGGER IF EXISTS set_updated_at_health_logs ON public.health_logs;
+DROP TRIGGER IF EXISTS set_updated_at_user_profiles ON public.user_profiles;
+DROP TRIGGER IF EXISTS set_updated_at_habits ON public.habits;
 
 -- Automated updated_at timestamp trigger function
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
