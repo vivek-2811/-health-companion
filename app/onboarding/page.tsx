@@ -12,10 +12,10 @@ import { toast, Toaster } from 'sonner';
 
 interface ProfileData {
   first_name: string;
-  age: number;
+  age: number | string;
   gender: string;
-  height: number;
-  weight: number;
+  height: number | string;
+  weight: number | string;
   wake_time: string;
   bed_time: string;
   activity_level: 'low' | 'medium' | 'high';
@@ -109,16 +109,20 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const ageNum = Number(profile.age) || 25;
+      const heightNum = Number(profile.height) || 170;
+      const weightNum = Number(profile.weight) || 65;
+
       // 1. Insert/Upsert user profile in table
       const { error: profileError } = await supabase
         .from('user_profiles')
         .upsert({
           user_id: user.id,
           first_name: profile.first_name,
-          age: Number(profile.age),
+          age: ageNum,
           gender: profile.gender,
-          height: Number(profile.height),
-          weight: Number(profile.weight),
+          height: heightNum,
+          weight: weightNum,
           wake_time: profile.wake_time,
           bed_time: profile.bed_time,
           activity_level: profile.activity_level,
@@ -234,7 +238,7 @@ export default function OnboardingPage() {
                         min="1"
                         max="120"
                         value={profile.age}
-                        onChange={(e) => setProfile(prev => ({ ...prev, age: parseInt(e.target.value) || 25 }))}
+                        onChange={(e) => setProfile(prev => ({ ...prev, age: e.target.value === '' ? '' : parseInt(e.target.value) || 0 }))}
                         className="w-full bg-zinc-900/60 border border-zinc-850 focus:border-zinc-700 pl-11 pr-4 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-0"
                       />
                     </div>
@@ -281,7 +285,7 @@ export default function OnboardingPage() {
                     min="50"
                     max="280"
                     value={profile.height}
-                    onChange={(e) => setProfile(prev => ({ ...prev, height: parseInt(e.target.value) || 170 }))}
+                    onChange={(e) => setProfile(prev => ({ ...prev, height: e.target.value === '' ? '' : parseInt(e.target.value) || 0 }))}
                     className="w-full bg-zinc-900/60 border border-zinc-850 focus:border-zinc-700 px-4 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-0"
                   />
                 </div>
@@ -294,7 +298,7 @@ export default function OnboardingPage() {
                     min="20"
                     max="400"
                     value={profile.weight}
-                    onChange={(e) => setProfile(prev => ({ ...prev, weight: parseInt(e.target.value) || 65 }))}
+                    onChange={(e) => setProfile(prev => ({ ...prev, weight: e.target.value === '' ? '' : parseInt(e.target.value) || 0 }))}
                     className="w-full bg-zinc-900/60 border border-zinc-850 focus:border-zinc-700 px-4 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-0"
                   />
                 </div>
