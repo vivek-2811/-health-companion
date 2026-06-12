@@ -86,14 +86,14 @@ function AuthBackground({ reverse = false }: { reverse?: boolean }) {
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 
-function AetherLogo() {
+function HealthCompanionLogo() {
   return (
     <div className="mb-8 flex items-center justify-center gap-3">
       <div className="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center">
         <ShieldCheck className="w-5 h-5 text-black" />
       </div>
       <span className="text-white font-semibold text-lg tracking-tight">
-        Aether
+        Health Companion
       </span>
     </div>
   );
@@ -111,7 +111,7 @@ function AuthCard({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="w-full max-w-sm"
       >
-        <AetherLogo />
+        <HealthCompanionLogo />
         {children}
       </motion.div>
     </div>
@@ -474,7 +474,7 @@ function OTPInputs({
 
 // ─── SIGN IN ──────────────────────────────────────────────────────────────────
 
-export function AetherSignIn() {
+export function HealthCompanionSignIn() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -592,7 +592,7 @@ export function AetherSignIn() {
           <h1 className="text-3xl font-bold text-white tracking-tight">
             Welcome back
           </h1>
-          <p className="text-white/40 text-sm">Sign in to your Aether account</p>
+          <p className="text-white/40 text-sm">Sign in to your Health Companion account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -668,7 +668,7 @@ export function AetherSignIn() {
 
 // ─── SIGN UP ──────────────────────────────────────────────────────────────────
 
-export function AetherSignUp() {
+export function HealthCompanionSignUp() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -772,7 +772,7 @@ export function AetherSignUp() {
             Create account
           </h1>
           <p className="text-white/40 text-sm">
-            Start your health journey with Aether
+            Start your health journey with Health Companion
           </p>
         </div>
 
@@ -918,7 +918,7 @@ export function AetherSignUp() {
               onChange={setAgreedHealth}
               disabled={isLoading}
             >
-              I consent to Aether processing my health data to provide
+              I consent to Health Companion processing my health data to provide
               personalised coaching
             </CheckboxItem>
           </div>
@@ -979,7 +979,7 @@ function CheckboxItem({
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────
 
-export function AetherForgotPassword() {
+export function HealthCompanionForgotPassword() {
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
@@ -1362,7 +1362,7 @@ function VerifyEmailContent() {
                   You&apos;re in!
                 </h1>
                 <p className="text-white/40 text-sm">
-                  Welcome to Aether. Heading to your dashboard…
+                  Welcome to Health Companion. Heading to your dashboard…
                 </p>
               </div>
             </motion.div>
@@ -1376,7 +1376,7 @@ function VerifyEmailContent() {
 
 // ─── RESET PASSWORD ───────────────────────────────────────────────────────────
 
-export function AetherResetPassword() {
+export function HealthCompanionResetPassword() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -1544,7 +1544,7 @@ export function AetherResetPassword() {
 
 // ─── VERIFY EMAIL (exported — wraps with Suspense for useSearchParams) ────────
 
-export function AetherVerifyEmail() {
+export function HealthCompanionVerifyEmail() {
   return (
     <Suspense
       fallback={

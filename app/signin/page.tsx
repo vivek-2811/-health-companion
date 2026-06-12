@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-const AetherSignIn = dynamic(
-  () => import("@/components/ui/aether-auth").then((m) => m.AetherSignIn),
+const HealthCompanionSignIn = dynamic(
+  () => import("@/components/ui/health-companion-auth").then((m) => m.HealthCompanionSignIn),
   {
     ssr: false,
     loading: () => (
@@ -16,5 +16,5 @@ const AetherSignIn = dynamic(
 );
 
 export default function SignInRoute() {
-  return <AetherSignIn />;
+  return <HealthCompanionSignIn />;
 }

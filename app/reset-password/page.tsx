@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-const AetherResetPassword = dynamic(
-  () => import("@/components/ui/aether-auth").then((m) => m.AetherResetPassword),
+const HealthCompanionResetPassword = dynamic(
+  () => import("@/components/ui/health-companion-auth").then((m) => m.HealthCompanionResetPassword),
   {
     ssr: false,
     loading: () => (
@@ -16,5 +16,5 @@ const AetherResetPassword = dynamic(
 );
 
 export default function ResetPasswordRoute() {
-  return <AetherResetPassword />;
+  return <HealthCompanionResetPassword />;
 }

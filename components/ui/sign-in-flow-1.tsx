@@ -639,7 +639,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                   >
                     <div className="space-y-1">
                       <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">
-                        Welcome to Aether
+                        Welcome to Health Companion
                       </h1>
                       <p className="text-[1.8rem] text-white/70 font-light">
                         Your AI Health Coach
@@ -868,7 +868,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                         You&apos;re in!
                       </h1>
                       <p className="text-[1.25rem] text-white/50 font-light">
-                        Welcome to Aether
+                        Welcome to Health Companion
                       </p>
                     </div>
 

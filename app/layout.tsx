@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aether — AI Health Coach",
+  title: "Health Companion — AI Health Coach",
   description: "Your personal AI-powered health companion for tracking water, sleep, steps and mood.",
 };
 

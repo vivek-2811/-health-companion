@@ -4,11 +4,11 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-// AetherVerifyEmail already wraps its useSearchParams usage in an internal Suspense.
+// HealthCompanionVerifyEmail already wraps its useSearchParams usage in an internal Suspense.
 // The outer Suspense here guards the dynamic import loading state.
-const AetherVerifyEmail = dynamic(
+const HealthCompanionVerifyEmail = dynamic(
   () =>
-    import("@/components/ui/aether-auth").then((m) => m.AetherVerifyEmail),
+    import("@/components/ui/health-companion-auth").then((m) => m.HealthCompanionVerifyEmail),
   {
     ssr: false,
     loading: () => (
@@ -28,7 +28,7 @@ export default function VerifyEmailRoute() {
         </div>
       }
     >
-      <AetherVerifyEmail />
+      <HealthCompanionVerifyEmail />
     </Suspense>
   );
 }

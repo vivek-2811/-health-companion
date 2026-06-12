@@ -348,7 +348,7 @@ export default function HealthCompanion() {
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-semibold text-lg">Aether</div>
+              <div className="font-semibold text-lg">Health Companion</div>
               <div className="text-[10px] text-emerald-400 -mt-1">AI Health Coach</div>
             </div>
           </div>
