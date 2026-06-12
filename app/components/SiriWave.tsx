@@ -49,8 +49,6 @@ export function SiriWave({ isListening }: SiriWaveProps) {
         ctx.beginPath();
 
         // Wave characteristics
-        // Speed up when listening
-        const speed = (0.04 + i * 0.015) * (isListening ? 1.8 : 0.2);
         // Larger amplitude when listening
         const baseAmplitude = isListening ? 22 : 2.5;
         // Vary amplitude over time to simulate dynamic voice input
