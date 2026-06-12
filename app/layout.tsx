@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DevErrorOverlay } from "@/components/DevErrorOverlay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Health Companion — AI Health Coach",
-  description: "Your personal AI-powered health companion for tracking water, sleep, steps and mood.",
+  title: "Aurora — AI Health Companion",
+  description: "Your personal AI-powered health companion for tracking water, sleep, habits and nutrition.",
   manifest: "/manifest.json",
 };
 
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
+        <DevErrorOverlay />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -50,3 +52,4 @@ export default function RootLayout({
     </html>
   );
 }
+

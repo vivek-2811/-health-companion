@@ -10,9 +10,13 @@ interface HealthData {
   lastUpdated: string;
 }
 
-interface ChatResponse {
+export interface ChatResponse {
   text: string;
   updatedData?: Partial<HealthData>;
+  actions?: {
+    type: 'update_health_logs' | 'create_habit' | 'log_meal';
+    payload: any;
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -22,67 +26,108 @@ function getLocalFallbackResponse(userMessage: string, healthData: HealthData): 
   const lowerMsg = userMessage.toLowerCase();
   let response = "";
   const updates: Partial<HealthData> = {};
+  const actions: any[] = [];
 
   // Water tracking
   if (lowerMsg.includes('water') || lowerMsg.includes('drink')) {
-    const waterMatch = userMessage.match(/(\d+)\s*(glass|glasses|liter|l|cup|cups)/i);
+    const waterMatch = userMessage.match(/(\d+)\s*(ml|milliliters|millilitres|l|liter|liters|glass|glasses|cup|cups)/i);
     if (waterMatch) {
       const amount = parseInt(waterMatch[1]);
-      const glasses = waterMatch[2].toLowerCase().includes('glass') || waterMatch[2].toLowerCase().includes('cup') ? amount : Math.round(amount * 4);
-      updates.water = Math.min(12, healthData.water + glasses);
-      response = `Great! I've logged ${glasses} glasses. You're now at ${updates.water || healthData.water} glasses today. Keep it up!`;
-    } else if (lowerMsg.includes('enough')) {
-      const percent = Math.round((healthData.water / 8) * 100);
-      response = `You've had ${healthData.water} glasses today (${percent}% of your goal). ${healthData.water >= 8 ? "You're doing amazing!" : "Let's aim for 8 glasses."}`;
+      const unit = waterMatch[2].toLowerCase();
+      let addedMl = amount;
+      
+      if (unit.includes('glass') || unit.includes('cup')) {
+        addedMl = amount * 250;
+      } else if (unit.includes('liter') || unit === 'l') {
+        addedMl = amount * 1000;
+      }
+
+      updates.water = healthData.water + addedMl;
+      response = `Great! I've logged ${addedMl}ml of water. You are now at ${updates.water}ml today. Keep it up!`;
+      actions.push({
+        type: 'update_health_logs',
+        payload: { water: updates.water }
+      });
     } else {
-      response = `How many glasses of water have you had today?`;
+      // Default fallback increment
+      updates.water = healthData.water + 250;
+      response = `Logged 1 glass (250ml) of water. You are now at ${updates.water}ml.`;
+      actions.push({
+        type: 'update_health_logs',
+        payload: { water: updates.water }
+      });
     }
   } 
   // Sleep
-  else if (lowerMsg.includes('sleep')) {
-    const sleepMatch = userMessage.match(/(\d+(\.\d+)?)\s*(hour|hours)/i);
+  else if (lowerMsg.includes('sleep') || lowerMsg.includes('slept')) {
+    const sleepMatch = userMessage.match(/(\d+(\.\d+)?)\s*(hour|hours|hr|hrs)/i);
     if (sleepMatch) {
       const amount = parseFloat(sleepMatch[1]);
       updates.sleep = amount;
       response = `Got it, I've updated your sleep log. Last night you slept ${amount} hours.`;
-    } else if (lowerMsg.includes('improve') || lowerMsg.includes('better')) {
-      response = `Try winding down 30 mins earlier, avoiding screens before bed, and sleeping in a completely dark room.`;
+      actions.push({
+        type: 'update_health_logs',
+        payload: { sleep: amount }
+      });
     } else {
-      response = `Last night you got ${healthData.sleep} hours. How are you feeling after that?`;
+      response = `Last night you got ${healthData.sleep} hours. How are you feeling today?`;
     }
   } 
-  // Steps
-  else if (lowerMsg.includes('steps') || lowerMsg.includes('walk') || lowerMsg.includes('run')) {
-    const stepsMatch = userMessage.match(/(\d+)\s*(steps)?/i);
-    if (stepsMatch) {
-      const amount = parseInt(stepsMatch[1]);
-      // If user says "I am at X steps" or similar, use as total, otherwise increment
-      if (lowerMsg.includes('at') || lowerMsg.includes('total') || lowerMsg.includes('reached')) {
-        updates.steps = amount;
-      } else {
-        updates.steps = healthData.steps + amount;
+  // Habit creation
+  else if (lowerMsg.includes('habit') || lowerMsg.includes('routine') || lowerMsg.includes('meditate') || lowerMsg.includes('read') || lowerMsg.includes('stretch') || lowerMsg.includes('walk') || lowerMsg.includes('journal')) {
+    const habitTypes = ['meditate', 'read', 'stretch', 'walk', 'journal', 'workout'];
+    let name = 'New Habit';
+    for (const h of habitTypes) {
+      if (lowerMsg.includes(h)) {
+        name = h.charAt(0).toUpperCase() + h.slice(1);
+        break;
       }
-      response = `Awesome! Steps logged. You are currently at ${(updates.steps || healthData.steps).toLocaleString()} steps.`;
-    } else {
-      response = `You've walked ${healthData.steps.toLocaleString()} steps today. Let's try to hit the 10,000 steps goal!`;
     }
-  } 
-  // Mood / General check-in
-  else if (lowerMsg.includes('feel') || lowerMsg.includes('mood') || lowerMsg.includes('today')) {
-    const moodMatch = userMessage.match(/(\d+)\s*(\/10)?/i);
-    if (moodMatch) {
-      const amount = Math.min(10, Math.max(1, parseInt(moodMatch[1])));
-      updates.mood = amount;
-      response = `Logged your mood as ${amount}/10. Thank you for sharing how you feel.`;
-    } else {
-      response = `Your mood score is ${healthData.mood}/10. How is your energy level right now?`;
-    }
+    response = `Done. I've created the habit "${name}" for you.`;
+    actions.push({
+      type: 'create_habit',
+      payload: {
+        name,
+        frequency: 'daily',
+        category: name.toLowerCase()
+      }
+    });
+  }
+  // Meal logging
+  else if (lowerMsg.includes('eat') || lowerMsg.includes('ate') || lowerMsg.includes('had') || lowerMsg.includes('breakfast') || lowerMsg.includes('lunch') || lowerMsg.includes('dinner') || lowerMsg.includes('snack')) {
+    let mealType = 'snack';
+    if (lowerMsg.includes('breakfast')) mealType = 'breakfast';
+    else if (lowerMsg.includes('lunch')) mealType = 'lunch';
+    else if (lowerMsg.includes('dinner')) mealType = 'dinner';
+
+    const items = lowerMsg.includes('eggs') ? 'eggs' : 'meal';
+    const calories = lowerMsg.includes('eggs') ? 140 : 250;
+    const protein = lowerMsg.includes('eggs') ? 12 : 10;
+    const carbs = lowerMsg.includes('eggs') ? 1 : 20;
+    const fat = lowerMsg.includes('eggs') ? 10 : 8;
+
+    response = `I've logged that under ${mealType}. Estimated calories: ${calories} kcal.`;
+    actions.push({
+      type: 'log_meal',
+      payload: {
+        meal_type: mealType,
+        description: items,
+        calories,
+        protein,
+        carbs,
+        fat
+      }
+    });
+  }
+  // Weekly progress
+  else if (lowerMsg.includes('week') || lowerMsg.includes('doing') || lowerMsg.includes('progress')) {
+    response = `Your weekly average looks good. Keep hitting your water target of 2000ml and sleep target of 8 hours!`;
   } 
   // Default conversational
   else {
     const responses = [
-      "That's interesting! Tell me more about your health goals for today.",
-      "I'm here to support your wellness journey. Would you like to log your water, sleep, steps, or mood?",
+      "That's interesting! Tell me more about your health goals.",
+      "I'm here to support your Aurora health journey. Would you like to log your water, sleep, habits, or meals?",
       "Thanks for sharing! What habits are we focusing on today?",
     ];
     response = responses[Math.floor(Math.random() * responses.length)];
@@ -91,6 +136,7 @@ function getLocalFallbackResponse(userMessage: string, healthData: HealthData): 
   return {
     text: response,
     updatedData: Object.keys(updates).length > 0 ? updates : undefined,
+    actions: actions.length > 0 ? actions : undefined,
   };
 }
 
@@ -115,32 +161,38 @@ export async function getGeminiResponse(
       generationConfig: { responseMimeType: "application/json" }
     });
 
-    const systemPrompt = `You are "Health Companion", a friendly, empathetic, and professional AI Health Coach.
-Your goal is to help the user track their daily health habits (Water, Sleep, Steps, Mood) and offer encouraging, actionable wellness advice.
+    const systemPrompt = `You are "Aurora", a friendly, empathetic, and professional AI Health Companion.
+Your goal is to help the user track their daily health habits (Water, Sleep, Steps, Mood, Habits, Nutrition) and offer encouraging, actionable wellness advice.
 
 You must respond ONLY in a valid JSON object matching the following structure:
 {
-  "text": "Your conversational response here (keep it under 3-4 sentences, encouraging, conversational and clear)",
+  "text": "Your conversational response here (keep it under 2-3 sentences, encouraging, conversational, deep calm coach persona)",
   "updatedData": {
-     // Include this object ONLY if the user reported/logged a change in their health metrics.
+     // Include this object ONLY if the user reported/logged a change in their core metrics (water, sleep, steps, mood).
      // Provide the NEW TOTAL value for the updated metric(s) based on the current stats provided below.
      // Only include metrics that the user explicitly mentioned updating.
-     "water": number, // target goal is 8 glasses
-     "sleep": number, // target goal is 7.5-8 hours
-     "steps": number, // target goal is 10,000 steps
+     "water": number, // total water in ml today (e.g. 500, 1000, 2000). Goal: 2000 ml.
+     "sleep": number, // total sleep in hours. Goal: 8 hours.
+     "steps": number, // total steps. Goal: 10,000 steps.
      "mood": number   // score out of 10
-  }
+  },
+  "actions": [
+     // Include this array of actions ONLY if the user requested a specific update.
+     // 1. { "type": "update_health_logs", "payload": { "water": number, "sleep": number, "steps": number, "mood": number } }
+     // 2. { "type": "create_habit", "payload": { "name": "Habit Name", "category": "meditate|read|stretch|walk|journal|general", "frequency": "daily|weekly" } }
+     // 3. { "type": "log_meal", "payload": { "meal_type": "breakfast|lunch|dinner|snack", "description": "food items details", "calories": number, "protein": number, "carbs": number, "fat": number } }
+  ]
 }
 
 Guidelines for updatedData calculations:
-1. Water: If user drank/logged water, calculate the new total glasses. For example, if current is 4, and user drank 2, return 6.
-2. Steps: If user walked/ran, calculate the new total steps. For example, if current is 5000, and user walked 2000, return 7000. If they specify their new total (e.g. "I am at 8000 steps now"), return that value (8000).
-3. Sleep: If user logs last night's sleep, set the value.
-4. Mood: If user reports how they feel, set the value (1 to 10).
-5. ONLY update the metrics the user explicitly logs. Do NOT guess or change others. If no metrics are logged, omit the "updatedData" key or set it to null.
+1. Hydration: Water is tracked in ML. If user logs "I drank 500ml water" or "drank 2 glasses of water" (estimate 1 glass = 250ml), calculate the new total. If current is 1000, and user drank 500ml, return 1500 in updatedData.water.
+2. Sleep: User sleeps in hours (e.g. "I slept 7.5 hours last night"). Set this value.
+3. Steps: Set total steps.
+4. Habits: If user wants to create a habit (e.g. "create a habit to read every night" or "I want to start meditating"), return a "create_habit" action.
+5. Nutrition: If user logs eating something (e.g. "I ate chicken salad for lunch"), return a "log_meal" action. You must estimate the macros (calories, protein, carbs, fat) for the food item and provide it in the payload.
 
 Here is the current state of today's health metrics:
-- Water: ${currentHealthData.water} glasses (Goal: 8)
+- Water: ${currentHealthData.water} ml (Goal: 2000 ml)
 - Sleep: ${currentHealthData.sleep} hours (Goal: 8)
 - Steps: ${currentHealthData.steps} steps (Goal: 10,000)
 - Mood: ${currentHealthData.mood}/10
@@ -174,7 +226,7 @@ Here is the current state of today's health metrics:
       if (typeof parsed.updatedData.sleep === 'string') parsed.updatedData.sleep = parseFloat(parsed.updatedData.sleep);
       
       // Sanitise values
-      if (parsed.updatedData.water !== undefined) parsed.updatedData.water = Math.max(0, Math.min(24, parsed.updatedData.water));
+      if (parsed.updatedData.water !== undefined) parsed.updatedData.water = Math.max(0, Math.min(10000, parsed.updatedData.water));
       if (parsed.updatedData.steps !== undefined) parsed.updatedData.steps = Math.max(0, Math.min(100000, parsed.updatedData.steps));
       if (parsed.updatedData.mood !== undefined) parsed.updatedData.mood = Math.max(1, Math.min(10, parsed.updatedData.mood));
       if (parsed.updatedData.sleep !== undefined) parsed.updatedData.sleep = Math.max(0, Math.min(24, parsed.updatedData.sleep));

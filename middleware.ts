@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Routes that require authentication
-  const isProtected = pathname.startsWith("/dashboard");
+  const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/onboarding");
 
   // Auth pages (redirect away if already logged in)
   const isAuthRoute =
@@ -51,11 +51,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated user trying to access auth pages → send to dashboard
+  // Authenticated user trying to access auth pages → send to dashboard or onboarding
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = user.user_metadata?.onboarded ? "/dashboard" : "/onboarding";
     return NextResponse.redirect(url);
+  }
+
+  // Onboarding routing check
+  if (user) {
+    if (pathname.startsWith("/dashboard") && !user.user_metadata?.onboarded) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+    if (pathname.startsWith("/onboarding") && user.user_metadata?.onboarded) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
