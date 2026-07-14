@@ -26,10 +26,16 @@ export async function middleware(request: NextRequest) {
   );
 
   // IMPORTANT: Do not run any logic between createServerClient and getUser()
-  // Refresh session so it doesn't expire mid-session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // We use a Promise.race with a 2.5 second timeout to prevent the middleware from crashing
+  // if Supabase is asleep or taking too long (Vercel Edge functions have strict timeouts).
+  const timeoutPromise = new Promise<{ data: { user: any } }>((resolve) =>
+    setTimeout(() => resolve({ data: { user: null } }), 2500)
+  );
+
+  const { data: { user } } = await Promise.race([
+    supabase.auth.getUser(),
+    timeoutPromise
+  ]);
 
   const { pathname } = request.nextUrl;
 
